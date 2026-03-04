@@ -11,11 +11,12 @@ function RemboursementPage({ navigate }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const form = event.currentTarget;
     setSubmitError("");
     setSubmittedReference("");
     setIsSubmitting(true);
 
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(form);
 
     try {
       const created = await createRefundRequest({
@@ -32,7 +33,7 @@ function RemboursementPage({ navigate }) {
       });
 
       setSubmittedReference(created.reference);
-      event.currentTarget.reset();
+      form.reset();
     } catch (error) {
       setSubmitError(error.message || t("refund.error.submit"));
     } finally {
