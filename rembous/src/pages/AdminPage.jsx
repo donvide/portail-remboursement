@@ -3,22 +3,6 @@ import { WarningIcon } from "../components/Icons";
 
 const ADMIN_TOKEN_KEY = "rembous_admin_token_v1";
 const STATUS_OPTIONS = ["received", "review", "scheduled", "paid", "rejected"];
-const LABELS = {
-  reference: "Reference",
-  status: "Statut",
-  createdAt: "Date creation",
-  updatedAt: "Date mise a jour",
-  orderReference: "Reference commande",
-  pseudo: "Pseudo TikTok",
-  totalAmount: "Montant",
-  email: "Email",
-  phone: "Telephone",
-  fullName: "Nom complet",
-  orderDate: "Date commande",
-  postalCode: "Code postal",
-  iban: "IBAN",
-  details: "Details",
-};
 
 async function parseJson(response) {
   const payload = await response.json().catch(() => ({}));
@@ -28,57 +12,66 @@ async function parseJson(response) {
   return payload;
 }
 
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
 function AdminPage() {
   const [token, setToken] = useState("");
-  const [reference, setReference] = useState("");
-  const [record, setRecord] = useState(null);
-  const [status, setStatus] = useState("received");
+  const [records, setRecords] = useState([]);
+  const [statusByReference, setStatusByReference] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUpdatingByReference, setIsUpdatingByReference] = useState({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+
+  const total = records.length;
+
+  const counts = useMemo(() => {
+    const output = { received: 0, review: 0, scheduled: 0, paid: 0, rejected: 0 };
+    for (const record of records) {
+      const status = String(record.status || "").toLowerCase();
+      if (output[status] !== undefined) output[status] += 1;
+    }
+    return output;
+  }, [records]);
 
   useEffect(() => {
     const savedToken = window.localStorage.getItem(ADMIN_TOKEN_KEY) || "";
     if (savedToken) {
       setToken(savedToken);
+      loadRecords(savedToken);
     }
   }, []);
 
-  const visibleRows = useMemo(() => {
-    if (!record) return [];
-    return Object.entries(record).map(([key, value]) => ({
-      key,
-      label: LABELS[key] || key,
-      value: typeof value === "string" ? value : JSON.stringify(value),
-    }));
-  }, [record]);
-
-  async function handleSearch(event) {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-    setRecord(null);
-
-    const normalizedToken = token.trim();
-    const normalizedReference = reference.trim().toUpperCase();
-    if (!normalizedToken || !normalizedReference) {
-      setError("Token admin et reference sont obligatoires.");
+  async function loadRecords(nextToken) {
+    const normalizedToken = String(nextToken || token).trim();
+    if (!normalizedToken) {
+      setError("Token admin obligatoire.");
       return;
     }
 
-    window.localStorage.setItem(ADMIN_TOKEN_KEY, normalizedToken);
     setIsLoading(true);
+    setError("");
+    setNotice("");
 
     try {
-      const response = await fetch(`/api/admin-refund?reference=${encodeURIComponent(normalizedReference)}`, {
+      const response = await fetch("/api/admin-refunds", {
         method: "GET",
         headers: { "x-admin-token": normalizedToken },
       });
       const data = await parseJson(response);
-      setRecord(data.record);
-      setStatus(String(data.record.status || "received"));
-      setNotice("Dossier charge.");
+      const nextRecords = data.records || [];
+      setRecords(nextRecords);
+      const nextStatus = {};
+      for (const item of nextRecords) {
+        nextStatus[item.reference] = item.status || "received";
+      }
+      setStatusByReference(nextStatus);
+      setNotice("Dashboard charge.");
     } catch (err) {
       setError(err.message || "Erreur de chargement");
     } finally {
@@ -86,17 +79,28 @@ function AdminPage() {
     }
   }
 
-  async function handleUpdateStatus() {
-    setError("");
-    setNotice("");
-
+  async function handleConnect(event) {
+    event.preventDefault();
     const normalizedToken = token.trim();
-    if (!normalizedToken || !record?.reference) {
-      setError("Token admin et dossier obligatoires.");
+    if (!normalizedToken) {
+      setError("Token admin obligatoire.");
+      return;
+    }
+    window.localStorage.setItem(ADMIN_TOKEN_KEY, normalizedToken);
+    await loadRecords(normalizedToken);
+  }
+
+  async function handleUpdate(reference) {
+    const normalizedToken = token.trim();
+    if (!normalizedToken) {
+      setError("Token admin obligatoire.");
       return;
     }
 
-    setIsUpdating(true);
+    setError("");
+    setNotice("");
+    setIsUpdatingByReference((prev) => ({ ...prev, [reference]: true }));
+
     try {
       const response = await fetch("/api/update-refund-status", {
         method: "POST",
@@ -105,36 +109,39 @@ function AdminPage() {
           "x-admin-token": normalizedToken,
         },
         body: JSON.stringify({
-          reference: record.reference,
-          status,
+          reference,
+          status: statusByReference[reference] || "received",
         }),
       });
       const updated = await parseJson(response);
-      setRecord((prev) =>
-        prev
-          ? {
-              ...prev,
-              status: updated.status,
-              updatedAt: updated.updatedAt,
-            }
-          : prev,
+
+      setRecords((prev) =>
+        prev.map((item) =>
+          item.reference === reference
+            ? {
+                ...item,
+                status: updated.status,
+                updatedAt: updated.updatedAt,
+              }
+            : item,
+        ),
       );
-      setNotice("Statut mis a jour.");
+      setNotice(`Statut mis a jour pour ${reference}.`);
     } catch (err) {
       setError(err.message || "Erreur de mise a jour");
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingByReference((prev) => ({ ...prev, [reference]: false }));
     }
   }
 
   return (
     <section className="modern-page">
       <header className="page-intro">
-        <h1>Admin</h1>
-        <p>Recherche dossier par reference et mise a jour du statut.</p>
+        <h1>Admin Dashboard</h1>
+        <p>Vue immediate de toutes les demandes et validation du statut.</p>
       </header>
 
-      <form className="track-form glass-panel" onSubmit={handleSearch}>
+      <form className="track-form glass-panel" onSubmit={handleConnect}>
         <div className="track-input-wrap">
           <label htmlFor="admin-token">Token admin</label>
           <input
@@ -145,20 +152,11 @@ function AdminPage() {
             placeholder="REFUND_ADMIN_TOKEN"
           />
         </div>
-
-        <div className="track-input-wrap">
-          <label htmlFor="admin-reference">Reference dossier</label>
-          <input
-            id="admin-reference"
-            type="text"
-            value={reference}
-            onChange={(event) => setReference(event.target.value.toUpperCase())}
-            placeholder="RMB-YYYYMMDD-XXXXXX"
-          />
-        </div>
-
         <button className="btn-primary" type="submit" disabled={isLoading}>
-          {isLoading ? "Recherche..." : "Rechercher"}
+          {isLoading ? "Chargement..." : "Charger le dashboard"}
+        </button>
+        <button className="btn-secondary" type="button" onClick={() => loadRecords(token)} disabled={isLoading}>
+          Rafraichir
         </button>
       </form>
 
@@ -171,40 +169,80 @@ function AdminPage() {
 
       {notice && !error && <div className="refund-success glass-panel">{notice}</div>}
 
-      {record && (
-        <section className="content-card glass-panel">
-          <h2>Dossier {record.reference}</h2>
-
-          <div className="track-form">
-            <div className="track-input-wrap">
-              <label htmlFor="admin-status">Statut</label>
-              <select
-                id="admin-status"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-                style={{ padding: "10px 12px", borderRadius: "10px", border: "1px solid #d7dfe9" }}
-              >
-                {STATUS_OPTIONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+      <section className="content-card glass-panel" style={{ marginTop: "16px" }}>
+        <h2>Statistiques</h2>
+        <div className="status-steps">
+          <div className="status-step is-current">
+            <strong>Total:</strong> <span>{total}</span>
+          </div>
+          {STATUS_OPTIONS.map((status) => (
+            <div key={status} className="status-step is-current">
+              <strong>{status}:</strong> <span>{counts[status]}</span>
             </div>
-            <button className="btn-secondary" type="button" onClick={handleUpdateStatus} disabled={isUpdating}>
-              {isUpdating ? "Mise a jour..." : "Mettre a jour le statut"}
-            </button>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          <div className="status-steps">
-            {visibleRows.map((row) => (
-              <div key={row.key} className="status-step is-current">
-                <strong>{row.label}:</strong> <span>{row.value || "-"}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="content-card glass-panel" style={{ marginTop: "16px" }}>
+        <h2>Demandes</h2>
+        {!records.length && <p>Aucune demande chargee.</p>}
+
+        <div className="status-steps">
+          {records.map((record) => {
+            const isUpdating = Boolean(isUpdatingByReference[record.reference]);
+            return (
+              <article key={record.reference} className="status-step is-current" style={{ display: "block" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                  <div>
+                    <strong>{record.reference}</strong>
+                    <div>Email: {record.email || "-"}</div>
+                    <div>Telephone: {record.phone || "-"}</div>
+                    <div>Montant: {record.totalAmount || "-"}</div>
+                    <div>Commande: {record.orderReference || "-"}</div>
+                    <div>Nom: {record.fullName || "-"}</div>
+                    <div>Code postal: {record.postalCode || "-"}</div>
+                    <div>IBAN: {record.iban || "-"}</div>
+                    <div>Details: {record.details || "-"}</div>
+                    <div>Cree le: {formatDate(record.createdAt)}</div>
+                    <div>MAJ le: {formatDate(record.updatedAt)}</div>
+                  </div>
+                  <div style={{ minWidth: "220px" }}>
+                    <label htmlFor={`status-${record.reference}`} style={{ display: "block", marginBottom: "6px" }}>
+                      Statut
+                    </label>
+                    <select
+                      id={`status-${record.reference}`}
+                      value={statusByReference[record.reference] || "received"}
+                      onChange={(event) =>
+                        setStatusByReference((prev) => ({
+                          ...prev,
+                          [record.reference]: event.target.value,
+                        }))
+                      }
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1px solid #d7dfe9" }}
+                    >
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn-secondary"
+                      type="button"
+                      onClick={() => handleUpdate(record.reference)}
+                      disabled={isUpdating}
+                      style={{ marginTop: "10px", width: "100%" }}
+                    >
+                      {isUpdating ? "Mise a jour..." : "Valider le statut"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
     </section>
   );
 }

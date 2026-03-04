@@ -3,6 +3,7 @@
 ## Endpoint
 - `POST /api/update-refund-status`
 - `GET /api/admin-refund?reference=RMB-YYYYMMDD-XXXXXX`
+- `GET /api/admin-refunds`
 
 ## Auth
 Use header:

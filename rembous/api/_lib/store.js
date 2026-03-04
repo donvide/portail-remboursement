@@ -22,3 +22,26 @@ export async function setRefund(reference, record) {
   await kv.set(key(reference), record);
 }
 
+export async function listRefunds() {
+  const pattern = `${STORE_PREFIX}:*`;
+  const keys = [];
+  let cursor = "0";
+
+  do {
+    const [nextCursor, batch] = await kv.scan(cursor, {
+      match: pattern,
+      count: 100,
+    });
+    cursor = String(nextCursor || "0");
+    for (const item of batch || []) {
+      keys.push(item);
+    }
+  } while (cursor !== "0");
+
+  if (!keys.length) {
+    return [];
+  }
+
+  const values = await kv.mget(...keys);
+  return (values || []).filter(Boolean);
+}
