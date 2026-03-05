@@ -83,7 +83,7 @@ function RemboursementPage({ navigate }) {
 
           <div className="refund-field">
             <label htmlFor="dateAchat">{t("refund.label.orderDate")}</label>
-            <input id="dateAchat" name="dateAchat" type="text" placeholder={t("refund.placeholder.orderDate")} />
+            <input id="dateAchat" name="dateAchat" type="date" />
           </div>
 
           <div className="refund-field">
