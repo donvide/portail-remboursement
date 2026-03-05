@@ -22,6 +22,10 @@ export async function setRefund(reference, record) {
   await kv.set(key(reference), record);
 }
 
+export async function deleteRefund(reference) {
+  await kv.del(key(reference));
+}
+
 export async function listRefunds() {
   const pattern = `${STORE_PREFIX}:*`;
   const keys = [];

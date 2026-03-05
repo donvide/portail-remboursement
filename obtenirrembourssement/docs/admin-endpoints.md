@@ -4,6 +4,7 @@
 - `POST /api/update-refund-status`
 - `GET /api/admin-refund?reference=RMB-YYYYMMDD-XXXXXX`
 - `GET /api/admin-refunds`
+- `POST /api/admin-delete-refund`
 
 ## Auth
 Use header:
@@ -24,6 +25,13 @@ Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` in Vercel environment variables.
 {
   "reference": "RMB-20260303-123456",
   "status": "scheduled"
+}
+```
+
+For delete:
+```json
+{
+  "reference": "RMB-20260303-123456"
 }
 ```
 
