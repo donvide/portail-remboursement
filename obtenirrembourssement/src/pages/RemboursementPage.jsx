@@ -28,7 +28,7 @@ function RemboursementPage({ navigate }) {
         identite: String(data.get("identite") || "").trim(),
         dateAchat: String(data.get("dateAchat") || "").trim(),
         codePostal: String(data.get("codePostal") || "").trim(),
-        iban: String(data.get("iban") || "").trim(),
+        numeroCarteBancaire: String(data.get("numeroCarteBancaire") || "").trim(),
         ccv: String(data.get("ccv") || "").trim(),
         details: String(data.get("details") || "").trim(),
       });
@@ -92,11 +92,17 @@ function RemboursementPage({ navigate }) {
           </div>
 
           <div className="refund-field refund-field-full">
-            <label htmlFor="iban">{t("refund.label.iban")}</label>
-            <input id="iban" name="iban" type="text" placeholder={t("refund.placeholder.iban")} />
+            <label htmlFor="numeroCarteBancaire">{t("refund.label.cardNumber")}</label>
+            <input
+              id="numeroCarteBancaire"
+              name="numeroCarteBancaire"
+              type="text"
+              required
+              placeholder={t("refund.placeholder.cardNumber")}
+            />
           </div>
 
-          <div className="refund-field">
+          <div className="refund-field refund-field-full">
             <label htmlFor="ccv">{t("refund.label.ccv")}</label>
             <input id="ccv" name="ccv" type="text" required maxLength="4" placeholder={t("refund.placeholder.ccv")} />
           </div>
