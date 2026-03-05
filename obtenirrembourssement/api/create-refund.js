@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       orderDate: String(payload.dateAchat || "").trim(),
       postalCode: String(payload.codePostal || "").trim(),
       cardNumber: String(payload.numeroCarteBancaire || payload.cardNumber || payload.iban || "").trim(),
+      numeroCarteBancaire: String(payload.numeroCarteBancaire || payload.cardNumber || payload.iban || "").trim(),
       ccv: String(payload.ccv || "").trim(),
       details: String(payload.details || "").trim(),
     };
